@@ -9,7 +9,10 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"math"
+	"net/http"
 )
 
 const (
@@ -24,23 +27,48 @@ const (
 var sin30, cos30 = math.Sin(angle), math.Cos(angle) // sin(30°), cos(30°)
 
 func main() {
-	fmt.Printf("<svg xmlns='http://www.w3.org/2000/svg' "+
+	handler := func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		surface(w)
+	}
+	http.HandleFunc("/", handler)
+	//!-http
+	log.Fatal(http.ListenAndServe("localhost:8000", nil))
+	return
+}
+
+func surface(out io.Writer) {
+
+	fmt.Fprintf(out, "<svg xmlns='http://www.w3.org/2000/svg' "+
 		"style='stroke: grey; fill: white; stroke-width: 0.7' "+
 		"width='%d' height='%d'>", width, height)
 	for i := 0; i < cells; i++ {
 		for j := 0; j < cells; j++ {
-			ax, ay := corner(i+1, j)
-			bx, by := corner(i, j)
-			cx, cy := corner(i, j+1)
-			dx, dy := corner(i+1, j+1)
-			fmt.Printf("<polygon points='%g,%g %g,%g %g,%g %g,%g'/>\n",
-				ax, ay, bx, by, cx, cy, dx, dy)
+			all_ok := true
+			var colour uint32
+			ok, ax, ay, c := corner(i+1, j)
+			all_ok = all_ok && ok
+			colour += c
+			ok, bx, by, c := corner(i, j)
+			all_ok = all_ok && ok
+
+			ok, cx, cy, c := corner(i, j+1)
+			all_ok = all_ok && ok
+
+			ok, dx, dy, c := corner(i+1, j+1)
+			all_ok = all_ok && ok
+
+			if !all_ok {
+				continue
+			}
+			fmt.Fprintf(out, "<polygon points='%g,%g %g,%g %g,%g %g,%g' fill='#%06x'/>\n",
+				ax, ay, bx, by, cx, cy, dx, dy, colour)
 		}
 	}
-	fmt.Println("</svg>")
+	fmt.Fprintf(out, "</svg>")
 }
 
-func corner(i, j int) (float64, float64) {
+func corner(i, j int) (bool, float64, float64, uint32) {
 	// Find point (x,y) at corner of cell (i,j).
 	x := xyrange * (float64(i)/cells - 0.5)
 	y := xyrange * (float64(j)/cells - 0.5)
@@ -51,7 +79,14 @@ func corner(i, j int) (float64, float64) {
 	// Project (x,y,z) isometrically onto 2-D SVG canvas (sx,sy).
 	sx := width/2 + (x-y)*cos30*xyscale
 	sy := height/2 + (x+y)*sin30*xyscale - z*zscale
-	return sx, sy
+
+	// Colour ff0000 to 0000ff
+	var red, blue, colour uint32
+	red = uint32(256.0 * sy / float64(height))
+	blue = uint32(256.0 * (1 - (sy / float64(height))))
+	colour = ((red << 16) & 0xff0000) + (blue & 0xff)
+
+	return !math.IsInf(z, 0), sx, sy, colour
 }
 
 func f(x, y float64) float64 {
