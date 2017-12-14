@@ -41,11 +41,48 @@ func PopCountByShifting(x uint64) int {
 	return n
 }
 
+// -- Tests --
+func TestCorrect(t *testing.T) {
+	pc := popcount.PopCount(0x1234567890ABCDEF)
+	pi := popcount.PopCountIt(0x1234567890ABCDEF)
+	ps := popcount.PopCountShift(0x1234567890ABCDEF)
+	pcool := popcount.PopCountCool(0x1234567890ABCDEF)
+
+	if pc != pi {
+		t.Errorf("PC: %d, PI: %d", pc, pi)
+	}
+	if pc != ps {
+		t.Errorf("PC: %d, PS: %d", pc, ps)
+	}
+	if pcool != ps {
+		t.Errorf("PCool: %d, PS: %d", pcool, ps)
+	}
+
+}
+
 // -- Benchmarks --
 
 func BenchmarkPopCount(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		popcount.PopCount(0x1234567890ABCDEF)
+	}
+}
+
+func BenchmarkPopCountIt(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		popcount.PopCountIt(0x1234567890ABCDEF)
+	}
+}
+
+func BenchmarkPopCountShift(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		popcount.PopCountShift(0x1234567890ABCDEF)
+	}
+}
+
+func BenchmarkPopCountCool(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		popcount.PopCountCool(0x1234567890ABCDEF)
 	}
 }
 
